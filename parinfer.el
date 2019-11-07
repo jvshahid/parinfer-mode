@@ -118,8 +118,8 @@ close-parens after it.")
 
 (defvar parinfer-strategy
   '((default
-     self-insert-command delete-indentation kill-line
-     comment-dwim kill-word delete-char newline kill-region comment-or-uncomment-region newline-and-indent)
+      self-insert-command delete-indentation kill-line comment-line
+      comment-dwim kill-word delete-char newline kill-region comment-or-uncomment-region newline-and-indent)
     (instantly
      delete-region newline)
     (skip))
@@ -858,11 +858,18 @@ If There's no change, switch to Indent Mode."
          (text (buffer-substring-no-properties (point-min) (point-max)))
          (result (parinferlib-indent-mode text opts))
          (success (plist-get result :success))
+         (err (plist-get result :error))
+         (error-message (plist-get err :message))
+         (error-line-no (plist-get err :line-no))
          (changed-lines (plist-get result :changed-lines)))
     (if (not success)
         (progn
-          (message (concat "Parinfer: Pairs unmatched, switch to Paren mode. "
-                           "When pair fixed, You can switch to indent mode."))
+          (message (concat "Parinfer: Error%s: \"%s\" - switch to Paren mode. "
+                           "When error fixed, you can switch to indent mode.")
+                   (if (null error-line-no)
+                       ""
+                     (format " on line %d" error-line-no))
+                   error-message)
           nil)
       (if (and changed-lines
                (not (string= text (plist-get result :text))))
@@ -886,11 +893,18 @@ If there's any change, display a confirm message in minibuffer."
          (text (buffer-substring-no-properties (point-min) (point-max)))
          (result (parinferlib-indent-mode text opts))
          (success (plist-get result :success))
+         (err (plist-get result :error))
+         (error-message (plist-get err :message))
+         (error-line-no (plist-get err :line-no))
          (changed-lines (plist-get result :changed-lines)))
     (if (not success)
         (progn
-          (message (concat "Pairs unmatched, switch to Paren mode. "
-                           "When pair fixed, You can switch to indent mode."))
+          (message (concat "Parinfer: Error%s: \"%s\" - switch to Paren mode. "
+                           "When error fixed, you can switch to indent mode.")
+                   (if (null error-line-no)
+                       ""
+                     (format " on line %d" error-line-no))
+                   error-message)
           nil)
       (if (and changed-lines
                (not (string= text (plist-get result :text))))
@@ -1031,12 +1045,6 @@ invoke parinfer after every semicolon input."
                            (parinfer--unfinished-string-p)))
             (parinfer--invoke-parinfer))))
     (call-interactively 'self-insert-command)))
-
-(defun parinfer-delete-indentation ()
-  "Replacement in 'parinfer-mode' for 'delete-indentation' command."
-  (interactive)
-  (parinfer-paren-run
-   (call-interactively 'delete-indentation)))
 
 (defun parinfer-toggle-mode ()
   "Switch parinfer mode between Indent Mode and Paren Mode."
